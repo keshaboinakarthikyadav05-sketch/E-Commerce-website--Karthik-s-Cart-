@@ -1,6 +1,6 @@
-# SHOPORA — Full-Stack E-Commerce Platform
+# Karthik's Cart — Full-Stack E-Commerce Platform
 
-SHOPORA is a complete, modern, multi-category e-commerce web platform engineered with **React (TypeScript + Vite + Tailwind CSS)** on the frontend, **Python (Flask REST API + SQLAlchemy)** on the backend, **PostgreSQL** relational database, and **Razorpay** payment gateway integration (online payment with cryptographic HMAC-SHA256 signature verification and Cash on Delivery).
+Karthik's Cart is a complete, modern, multi-category e-commerce web platform engineered with **React (TypeScript + Vite + Tailwind CSS)** on the frontend, **Python (Flask REST API + SQLAlchemy)** on the backend, **PostgreSQL** relational database, and **Razorpay** payment gateway integration (online payment with cryptographic HMAC-SHA256 signature verification and Cash on Delivery).
 
 ---
 
