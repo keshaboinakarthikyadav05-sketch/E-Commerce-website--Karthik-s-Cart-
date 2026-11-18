@@ -183,3 +183,17 @@ RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 ```
 - In development/test mode, standard test credentials can be generated at [https://dashboard.razorpay.com/app/keys](https://dashboard.razorpay.com/app/keys).
 - If API keys are not supplied, the backend seamlessly runs simulated test checkout mode with cryptographic signature validation to facilitate immediate end-to-end testing without blocking.
+
+---
+
+## ☁️ Deploying to Render
+
+1. Push this repository to GitHub and sign in to [Render](https://render.com).
+2. Select **New → Blueprint**, connect this repository, and deploy the `render.yaml` Blueprint.
+   It creates a Flask web service, a PostgreSQL database, and builds/serves the React app from that service.
+3. In the web service's **Environment** settings, add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to enable Razorpay. Use your own keys; never publish them in this repository. Without these keys, checkout remains in simulated test mode.
+4. Open the service's `onrender.com` URL. The initial deploy hook creates the database schema and product catalog. It deliberately does not create the public demo admin/customer accounts.
+
+The Blueprint uses Render's free plans, which have usage limits; Render's free PostgreSQL database is temporary. Upgrade the database plan in Render before relying on it for persistent production data. Register accounts through the deployed site; real payment processing requires valid Razorpay credentials.
+
+If startup reports that `DATABASE_URL` cannot be parsed, open the web service's **Environment** settings and ensure `DATABASE_URL` contains the internal connection string for the linked Render Postgres database (not a blank value or the database name alone). Alternatively, sync the repository Blueprint so it applies the `fromDatabase` mapping.

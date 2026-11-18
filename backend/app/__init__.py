@@ -1,15 +1,20 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, abort, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
+from werkzeug.exceptions import NotFound
 from app.config import Config
 from app.models import db, bcrypt, jwt
 
 migrate = Migrate()
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
     app.config.from_object(config_class)
+
+    frontend_dist = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'dist')
+    )
 
     # Enable CORS for frontend Vite dev server & production origin
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
@@ -38,6 +43,21 @@ def create_app(config_class=Config):
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
     app.register_blueprint(payments_bp, url_prefix='/api/payments')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+
+    if os.path.isfile(os.path.join(frontend_dist, 'index.html')):
+        @app.route('/', defaults={'path': ''})
+        @app.route('/<path:path>')
+        def serve_frontend(path):
+            if path == 'api' or path.startswith('api/'):
+                abort(404)
+
+            if path:
+                try:
+                    return send_from_directory(frontend_dist, path)
+                except NotFound:
+                    pass
+
+            return send_from_directory(frontend_dist, 'index.html')
 
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])

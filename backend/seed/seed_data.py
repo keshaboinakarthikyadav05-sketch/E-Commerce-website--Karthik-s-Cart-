@@ -25,49 +25,52 @@ def seed_database():
         db.create_all()
         print("✅ Database tables created successfully.")
 
-        # 1. Seed Admin User
-        admin = User.query.filter_by(email='admin@shopora.com').first()
-        if not admin:
-            admin = User(
-                full_name='SHOPORA Administrator',
-                email='admin@shopora.com',
-                mobile_number='+91 9876543210',
-                role='admin',
-                is_active=True
-            )
-            admin.set_password('Admin@123')
-            db.session.add(admin)
-            print("👤 Admin user seeded: admin@shopora.com / Admin@123")
+        seed_demo_users = os.getenv('SEED_DEMO_USERS', 'true').lower() == 'true'
+        customer = None
+        if seed_demo_users:
+            # 1. Seed Admin User
+            admin = User.query.filter_by(email='admin@shopora.com').first()
+            if not admin:
+                admin = User(
+                    full_name='SHOPORA Administrator',
+                    email='admin@shopora.com',
+                    mobile_number='+91 9876543210',
+                    role='admin',
+                    is_active=True
+                )
+                admin.set_password('Admin@123')
+                db.session.add(admin)
+                print("👤 Admin user seeded: admin@shopora.com / Admin@123")
 
-        # 2. Seed Customer User
-        customer = User.query.filter_by(email='customer@shopora.com').first()
-        if not customer:
-            customer = User(
-                full_name='Aarav Sharma',
-                email='customer@shopora.com',
-                mobile_number='+91 9811223344',
-                role='customer',
-                is_active=True
-            )
-            customer.set_password('Customer@123')
-            db.session.add(customer)
-            db.session.flush()
+            # 2. Seed Customer User
+            customer = User.query.filter_by(email='customer@shopora.com').first()
+            if not customer:
+                customer = User(
+                    full_name='Aarav Sharma',
+                    email='customer@shopora.com',
+                    mobile_number='+91 9811223344',
+                    role='customer',
+                    is_active=True
+                )
+                customer.set_password('Customer@123')
+                db.session.add(customer)
+                db.session.flush()
 
-            # Add default address
-            address = Address(
-                user_id=customer.id,
-                full_name='Aarav Sharma',
-                mobile_number='+91 9811223344',
-                address_line1='Flat 402, Skyline Residency, Indiranagar',
-                address_line2='100 Feet Road, Near Metro Station',
-                city='Bengaluru',
-                state='Karnataka',
-                postal_code='560038',
-                country='India',
-                is_default=True
-            )
-            db.session.add(address)
-            print("👤 Demo customer seeded: customer@shopora.com / Customer@123")
+                # Add default address
+                address = Address(
+                    user_id=customer.id,
+                    full_name='Aarav Sharma',
+                    mobile_number='+91 9811223344',
+                    address_line1='Flat 402, Skyline Residency, Indiranagar',
+                    address_line2='100 Feet Road, Near Metro Station',
+                    city='Bengaluru',
+                    state='Karnataka',
+                    postal_code='560038',
+                    country='India',
+                    is_default=True
+                )
+                db.session.add(address)
+                print("👤 Demo customer seeded: customer@shopora.com / Customer@123")
 
         # 3. Seed Coupons
         coupons = [
@@ -250,16 +253,17 @@ def seed_database():
                     db.session.add(v)
 
             # Add sample reviews for top products
-            sample_review = Review(
-                product_id=product.id,
-                user_id=customer.id if customer else 1,
-                rating=5 if product.rating >= 4.7 else 4,
-                title="Superb quality! Exceeded expectations",
-                comment=f"I purchased this {product.name} recently and the build quality, materials, and finish are top notch. Delivery by Shopora was remarkably quick!",
-                user_name="Aarav Sharma",
-                is_verified_purchase=True
-            )
-            db.session.add(sample_review)
+            if customer:
+                sample_review = Review(
+                    product_id=product.id,
+                    user_id=customer.id,
+                    rating=5 if product.rating >= 4.7 else 4,
+                    title="Superb quality! Exceeded expectations",
+                    comment=f"I purchased this {product.name} recently and the build quality, materials, and finish are top notch. Delivery by Shopora was remarkably quick!",
+                    user_name="Aarav Sharma",
+                    is_verified_purchase=True
+                )
+                db.session.add(sample_review)
 
             products_seeded_count += 1
 

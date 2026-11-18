@@ -1,6 +1,8 @@
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 # Load .env from backend directory or workspace root
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,13 +17,31 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'shopora-jwt-secret-key-development-2026')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)
     
-    raw_db_url = os.getenv(
-        'DATABASE_URL',
-        'postgresql+psycopg2://postgres:postgres@localhost:5432/shopora_db'
-    )
+    raw_db_url = os.getenv('DATABASE_URL')
+    if raw_db_url is None:
+        raw_db_url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/shopora_db'
+    else:
+        raw_db_url = raw_db_url.strip()
+        if not raw_db_url:
+            raise RuntimeError(
+                'DATABASE_URL is set but empty. In Render, set it to the database '
+                'internal connection string or apply the repository render.yaml Blueprint.'
+            )
+
+    # Render provides postgres:// URLs; SQLAlchemy needs postgresql+psycopg2://.
+    if raw_db_url.startswith('postgres://'):
+        raw_db_url = raw_db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
     # Ensure psycopg2 driver is specified if generic postgresql:// is provided
     if raw_db_url.startswith('postgresql://'):
         raw_db_url = raw_db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+
+    try:
+        make_url(raw_db_url)
+    except ArgumentError as error:
+        raise RuntimeError(
+            'DATABASE_URL is not a valid SQLAlchemy URL. In Render, set it to the '
+            'database internal connection string or apply the repository render.yaml Blueprint.'
+        ) from error
     
     SQLALCHEMY_DATABASE_URI = raw_db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
