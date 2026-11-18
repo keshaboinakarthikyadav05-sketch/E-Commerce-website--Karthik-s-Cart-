@@ -85,18 +85,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     }
   };
 
-  const fillDemoCustomer = () => {
-    setEmail('customer@shopora.com');
-    setPassword('Customer@123');
-    setError(null);
-  };
-
-  const fillDemoAdmin = () => {
-    setEmail('admin@shopora.com');
-    setPassword('Admin@123');
-    setError(null);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 overflow-hidden">
@@ -259,30 +247,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           </button>
         </form>
 
-        {/* 1-Click Demo Credentials for quick evaluation */}
-        {mode === 'login' && (
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-2.5">
-              Quick 1-Click Demo Access
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={fillDemoCustomer}
-                className="text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-medium py-2 px-3 rounded-xl border border-slate-200 transition-colors text-center"
-              >
-                👤 Customer Demo
-              </button>
-              <button
-                type="button"
-                onClick={fillDemoAdmin}
-                className="text-xs bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-700 font-medium py-2 px-3 rounded-xl border border-slate-200 transition-colors text-center"
-              >
-                🛡️ Admin Demo
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

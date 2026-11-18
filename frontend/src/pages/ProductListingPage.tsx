@@ -46,6 +46,8 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onOpenAu
     has_next: false,
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   // Local filter inputs
@@ -69,8 +71,10 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onOpenAu
 
   // Fetch products whenever search params change
   useEffect(() => {
+    let active = true;
     const fetchProducts = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         const params: Record<string, any> = {
           page: queryPage,
@@ -87,19 +91,26 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onOpenAu
         if (searchParams.get('bestseller')) params.bestseller = 'true';
 
         const res = await productsApi.getProducts(params);
-        if (res.data?.success) {
+        if (active && res.data?.success) {
           setProducts(res.data.products);
           setPagination(res.data.pagination);
         }
-      } catch (err) {
-        console.error('Failed to fetch products:', err);
+      } catch {
+        if (active) {
+          setProducts([]);
+          setLoadError('Products could not be loaded. Check your connection and try again.');
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchProducts();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    return () => {
+      active = false;
+    };
   }, [
     querySearch,
     queryCategory,
@@ -109,7 +120,8 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onOpenAu
     queryMaxPrice,
     queryRating,
     queryPage,
-    searchParams
+    searchParams,
+    retryCount
   ]);
 
   // Update query params helper
@@ -368,6 +380,16 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onOpenAu
               {Array.from({ length: 9 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
+            </div>
+          ) : loadError ? (
+            <div className="bg-white rounded-3xl border border-rose-200 p-12 text-center space-y-4">
+              <p className="text-sm text-rose-700">{loadError}</p>
+              <button
+                onClick={() => setRetryCount((count) => count + 1)}
+                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-5 py-2.5 rounded-full transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Retry
+              </button>
             </div>
           ) : products.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">

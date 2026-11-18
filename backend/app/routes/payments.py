@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from app.models import db, Order, Payment, Product, CartItem
 from app.services.razorpay_service import RazorpayService
@@ -24,12 +24,19 @@ def create_payment_order():
         return jsonify({'success': False, 'message': 'Order is already paid'}), 400
 
     # Create or retrieve Razorpay payment order
-    rzp_order = RazorpayService.create_order(
-        amount=order.total_amount,
-        receipt_id=order.order_number,
-        currency='INR',
-        notes={'order_id': order.id, 'user_id': user_id}
-    )
+    try:
+        rzp_order = RazorpayService.create_order(
+            amount=order.total_amount,
+            receipt_id=order.order_number,
+            currency='INR',
+            notes={'order_id': order.id, 'user_id': user_id}
+        )
+    except RuntimeError as error:
+        current_app.logger.error('Razorpay order creation failed: %s', error)
+        return jsonify({
+            'success': False,
+            'message': 'Online payments are temporarily unavailable. Please try again later.'
+        }), 503
 
     order.razorpay_order_id = rzp_order['id']
     db.session.commit()

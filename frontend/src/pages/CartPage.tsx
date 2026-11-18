@@ -397,7 +397,7 @@ export const CartPage: React.FC<CartPageProps> = ({ onOpenAuth }) => {
                 type="text"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                placeholder="e.g. KARTHIK10"
+                placeholder="e.g. SHOPORA10"
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
               />
               <button
@@ -431,10 +431,10 @@ export const CartPage: React.FC<CartPageProps> = ({ onOpenAuth }) => {
                 Available codes:{' '}
                 <button
                   type="button"
-                  onClick={() => setCouponCode('KARTHIK10')}
+                  onClick={() => setCouponCode('SHOPORA10')}
                   className="font-bold text-indigo-600 hover:underline"
                 >
-                  KARTHIK10
+                  SHOPORA10
                 </button>{' '}
                 (10% off),{' '}
                 <button

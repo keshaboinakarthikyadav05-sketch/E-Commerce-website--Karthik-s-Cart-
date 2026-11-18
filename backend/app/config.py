@@ -1,7 +1,8 @@
 import os
+import secrets
 from datetime import timedelta
 from dotenv import load_dotenv
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
 # Load .env from backend directory or workspace root
@@ -13,13 +14,26 @@ else:
     load_dotenv()
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'shopora-super-secret-jwt-key-development-2026')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'shopora-jwt-secret-key-development-2026')
+    ENVIRONMENT = os.getenv('FLASK_ENV', 'development').lower()
+    IS_PRODUCTION = ENVIRONMENT == 'production' or os.getenv('RENDER', '').lower() == 'true'
+
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+    if IS_PRODUCTION and (not SECRET_KEY or not JWT_SECRET_KEY):
+        raise RuntimeError('Set SECRET_KEY and JWT_SECRET_KEY in the production environment.')
+    SECRET_KEY = SECRET_KEY or secrets.token_urlsafe(32)
+    JWT_SECRET_KEY = JWT_SECRET_KEY or secrets.token_urlsafe(32)
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)
     
     raw_db_url = os.getenv('DATABASE_URL')
     if raw_db_url is None:
-        raw_db_url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/shopora_db'
+        if IS_PRODUCTION:
+            raise RuntimeError(
+                'DATABASE_URL is required in production. Connect a Render PostgreSQL '
+                'database in the service environment.'
+            )
+        sqlite_path = os.path.join(backend_dir, 'shopora.db')
+        raw_db_url = URL.create('sqlite', database=sqlite_path).render_as_string(hide_password=False)
     else:
         raw_db_url = raw_db_url.strip()
         if not raw_db_url:
@@ -36,18 +50,20 @@ class Config:
         raw_db_url = raw_db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
 
     try:
-        make_url(raw_db_url)
+        parsed_db_url = make_url(raw_db_url)
     except ArgumentError as error:
         raise RuntimeError(
-            'DATABASE_URL is not a valid SQLAlchemy URL. In Render, set it to the '
-            'database internal connection string or apply the repository render.yaml Blueprint.'
+            'DATABASE_URL is not a valid SQLAlchemy URL. Set it to a SQLite or PostgreSQL '
+            'connection URL.'
         ) from error
+    if parsed_db_url.get_backend_name() not in ('sqlite', 'postgresql'):
+        raise RuntimeError('DATABASE_URL must use SQLite or PostgreSQL.')
     
     SQLALCHEMY_DATABASE_URI = raw_db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    AUTO_INITIALIZE_DATABASE = True
     
-    # Razorpay Test Configuration
-    RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', 'rzp_test_shopora12345')
-    RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', 'shopora_razorpay_secret_key_98765')
+    RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
+    RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
     
     CORS_HEADERS = 'Content-Type'

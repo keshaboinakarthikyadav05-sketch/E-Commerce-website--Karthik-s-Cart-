@@ -114,32 +114,40 @@ The database consists of 13 normalized relational tables:
 
 ## 🚀 Getting Started & Running the Application
 
-### 1. PostgreSQL Database Setup
-
-Make sure your PostgreSQL server is running (default port 5432).
-Create the database `shopora_db`:
-```bash
-# Using psql:
-psql -U postgres -c "CREATE DATABASE shopora_db;"
-```
-*(If your PostgreSQL password is not default `postgres`, update `DATABASE_URL` in `backend/.env`)*.
-
-### 2. Backend Setup & Seeding
+### 1. Backend Setup
 
 ```bash
 cd backend
 
-# 1. Install dependencies
-pip install -r requirements.txt
+# Windows PowerShell: create the private environment file if it does not exist
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 
-# 2. Initialize tables & seed 100+ sample products, admin & customer users
-python -m seed.seed_data
+# Install dependencies
+python -m pip install -r requirements.txt
 
-# 3. Start backend Flask server (http://localhost:5000)
+# Start the API (http://localhost:5000)
 python run.py
 ```
 
-### 3. Frontend Setup & Launch
+On first startup, the backend creates the SQLite file `backend/shopora.db`, creates missing tables, and inserts any missing sample categories and products (100 items). Initialization is transactional and never drops existing tables or deletes existing catalog records. If you already have a private `backend/.env`, keep it and set its local `DATABASE_URL` to `sqlite:///shopora.db` to use SQLite.
+
+To seed local coupons, run this once from `backend/`:
+
+```bash
+python -m seed.seed_data
+```
+
+Demo accounts are disabled by default. To seed them locally, set `SEED_DEMO_USERS=true` and provide `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_CUSTOMER_EMAIL`, and `SEED_CUSTOMER_PASSWORD` in your private `backend/.env` before running the seeder. Render keeps `SEED_DEMO_USERS=false`.
+
+Development-only SQLite reset (permanently deletes the local database contents):
+
+```bash
+flask --app run reset-db
+```
+
+This command refuses to reset PostgreSQL or a production environment.
+
+### 2. Frontend Setup & Launch
 
 ```bash
 cd frontend
@@ -151,18 +159,26 @@ npm install
 npm run dev
 ```
 
-Visit **`http://localhost:3000`** in your browser!
+Visit **`http://localhost:3000`**. The frontend defaults to `/api`; Vite proxies that path to the local Flask server. For a separate API origin, set `VITE_API_BASE_URL` in `frontend/.env.local`. The Render deployment serves the API and frontend from the same origin, so the default `/api` also works in production.
+
+### 3. Product and Search API checks
+
+The existing category API remains available at `/api/categories`; `/api/products/categories` is also available for clients that expect it. Product listing supports search and pagination:
+
+```powershell
+Invoke-RestMethod "http://localhost:5000/api/health"
+Invoke-RestMethod "http://localhost:5000/api/products?page=1&limit=12"
+Invoke-RestMethod "http://localhost:5000/api/products/search?q=iPhone"
+Invoke-RestMethod "http://localhost:5000/api/products/search/suggestions?q=Samsung"
+```
+
+Search is case-insensitive and covers product name, brand, description, category name, and category slug. Empty suggestions return an empty array; a search with no matches returns HTTP 200 with an empty product list and pagination metadata. Invalid pagination returns HTTP 400, and database failures return HTTP 503.
 
 ---
 
-## 🔑 Demo Credentials
+## 🔑 Accounts
 
-| Role | Email | Password | Access |
-|---|---|---|---|
-| **Customer** | `customer@shopora.com` | `Customer@123` | Cart, Wishlist, Checkout, Orders, Reviews |
-| **Store Admin** | `admin@shopora.com` | `Admin@123` | Full Admin Dashboard (`/admin`), Manage Products, Orders, Users |
-
-*(Note: The login modal features convenient 1-Click Demo buttons to auto-fill these credentials)*.
+Create a customer account through the registration page. For local admin/demo accounts, set `SEED_DEMO_USERS=true` and provide `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_CUSTOMER_EMAIL`, and `SEED_CUSTOMER_PASSWORD` in the private `backend/.env`, then run `python -m seed.seed_data` from `backend/`. No default demo passwords are included in the application or frontend.
 
 ---
 
@@ -182,7 +198,7 @@ RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 ```
 - In development/test mode, standard test credentials can be generated at [https://dashboard.razorpay.com/app/keys](https://dashboard.razorpay.com/app/keys).
-- If API keys are not supplied, the backend seamlessly runs simulated test checkout mode with cryptographic signature validation to facilitate immediate end-to-end testing without blocking.
+- With no API keys, simulated checkout is available only in development and still validates an HMAC signature. Production requires Razorpay credentials for online payments.
 
 ---
 
@@ -191,9 +207,23 @@ RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 1. Push this repository to GitHub and sign in to [Render](https://render.com).
 2. Select **New → Blueprint**, connect this repository, and deploy the `render.yaml` Blueprint.
    It creates a Flask web service, a PostgreSQL database, and builds/serves the React app from that service.
-3. In the web service's **Environment** settings, add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to enable Razorpay. Use your own keys; never publish them in this repository. Without these keys, checkout remains in simulated test mode.
-4. Open the service's `onrender.com` URL. The initial deploy hook creates the database schema and product catalog. It deliberately does not create the public demo admin/customer accounts.
+3. In the web service's **Environment** settings, add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to enable Razorpay. Use your own keys; never publish them in this repository. Without them, production online payments are unavailable; simulated checkout is development-only.
+4. Open the service's `onrender.com` URL. App startup creates missing tables and inserts missing catalog records without dropping tables or deleting existing records. The initial deploy hook does not create the public demo admin/customer accounts.
 
 The Blueprint uses Render's free plans, which have usage limits; Render's free PostgreSQL database is temporary. Upgrade the database plan in Render before relying on it for persistent production data. Register accounts through the deployed site; real payment processing requires valid Razorpay credentials.
 
-If startup reports that `DATABASE_URL` cannot be parsed, open the web service's **Environment** settings and ensure `DATABASE_URL` contains the internal connection string for the linked Render Postgres database (not a blank value or the database name alone). Alternatively, sync the repository Blueprint so it applies the `fromDatabase` mapping.
+Production requires `DATABASE_URL`, `SECRET_KEY`, and `JWT_SECRET_KEY`. The Blueprint links `DATABASE_URL` to Render Postgres and generates the two secret keys. If you created the service manually, connect the Postgres database and set those variables in the web service's **Environment** settings. Never use a local SQLite file for Render's ephemeral filesystem.
+
+### Environment variables
+
+| Variable | Local development | Render production |
+|---|---|---|
+| `DATABASE_URL` | Optional; defaults to `backend/shopora.db` SQLite | Required; Blueprint maps it to Postgres |
+| `SECRET_KEY` | Optional; generated locally when omitted | Required, generated by Blueprint |
+| `JWT_SECRET_KEY` | Optional; generated locally when omitted | Required, generated by Blueprint |
+| `FLASK_ENV` | `development` | `production` |
+| `SEED_DEMO_USERS` | `false` by default; only enable with private seed credentials | `false` |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Required only when opting into a local demo admin | Not used |
+| `SEED_CUSTOMER_EMAIL` / `SEED_CUSTOMER_PASSWORD` | Required only when opting into a local demo customer | Not used |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Optional test keys | Optional; required for real payments |
+| `VITE_API_BASE_URL` | Defaults to `/api` and uses the Vite proxy | Defaults to same-origin `/api` |

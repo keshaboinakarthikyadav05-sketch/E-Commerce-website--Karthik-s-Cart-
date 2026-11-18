@@ -6,11 +6,8 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  ShoppingBag,
-  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -57,17 +54,6 @@ export const LoginPage: React.FC = () => {
       }, 600);
     } else {
       setError(res.message || 'Invalid email or password. Please try again.');
-    }
-  };
-
-  const handleFillDemo = (type: 'customer' | 'admin') => {
-    setError(null);
-    if (type === 'customer') {
-      setEmail('customer@shopora.com');
-      setPassword('Customer@123');
-    } else {
-      setEmail('admin@shopora.com');
-      setPassword('Admin@123');
     }
   };
 
@@ -163,29 +149,6 @@ export const LoginPage: React.FC = () => {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Demo Credentials Quick Fill */}
-        <div className="pt-2 border-t border-slate-100">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center mb-2.5">
-            1-Click Demo Login
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleFillDemo('customer')}
-              className="text-xs font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 py-2.5 px-3 rounded-xl border border-slate-200 transition-colors text-center"
-            >
-              👤 Customer Account
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('admin')}
-              className="text-xs font-semibold bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-700 py-2.5 px-3 rounded-xl border border-slate-200 transition-colors text-center"
-            >
-              🛡️ Admin Account
-            </button>
-          </div>
-        </div>
 
         {/* Bottom Switcher */}
         <p className="text-center text-xs text-slate-500 pt-2">

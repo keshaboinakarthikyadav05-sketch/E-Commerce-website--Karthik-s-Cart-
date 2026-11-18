@@ -11,10 +11,32 @@ def slugify(text):
     text = text.lower().strip()
     return re.sub(r'[\s\W-]+', '-', text).strip('-')
 
+def _search_pattern(value):
+    escaped = value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    return f"%{escaped}%"
+
+def _product_search_filter(value):
+    pattern = _search_pattern(value)
+    return or_(
+        Product.name.ilike(pattern, escape='\\'),
+        Product.brand.ilike(pattern, escape='\\'),
+        Product.description.ilike(pattern, escape='\\'),
+        Product.category.has(or_(
+            Category.name.ilike(pattern, escape='\\'),
+            Category.slug.ilike(pattern, escape='\\'),
+        )),
+    )
+
 @products_bp.route('', methods=['GET'])
 def get_products():
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 12, type=int)
+    try:
+        page = int(request.args.get('page', '1'))
+        limit = int(request.args.get('limit', '12'))
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Page and limit must be integers'}), 400
+    if page < 1 or limit < 1 or limit > 100:
+        return jsonify({'success': False, 'message': 'Page must be positive and limit must be between 1 and 100'}), 400
+
     search = request.args.get('q', '').strip()
     category = request.args.get('category', '').strip()
     brand = request.args.get('brand', '').strip()
@@ -30,21 +52,19 @@ def get_products():
 
     # Search filter
     if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                Product.name.ilike(search_term),
-                Product.brand.ilike(search_term),
-                Product.description.ilike(search_term)
-            )
-        )
+        query = query.filter(_product_search_filter(search))
 
     # Category filter (by slug or id)
     if category:
         if category.isdigit():
             query = query.filter(Product.category_id == int(category))
         else:
-            cat = Category.query.filter_by(slug=category).first()
+            cat = Category.query.filter(
+                or_(
+                    Category.slug.ilike(category),
+                    Category.name.ilike(_search_pattern(category), escape='\\'),
+                )
+            ).first()
             if cat:
                 query = query.filter(Product.category_id == cat.id)
             else:
@@ -104,18 +124,19 @@ def get_products():
         }
     }), 200
 
+@products_bp.route('/search', methods=['GET'])
+def search_products():
+    return get_products()
+
 @products_bp.route('/search/suggestions', methods=['GET'])
 def search_suggestions():
     q = request.args.get('q', '').strip()
     if not q or len(q) < 2:
         return jsonify({'success': True, 'suggestions': []}), 200
 
-    search_term = f"%{q}%"
-    matches = Product.query.filter(
-        or_(
-            Product.name.ilike(search_term),
-            Product.brand.ilike(search_term)
-        )
+    matches = Product.query.filter(_product_search_filter(q)).order_by(
+        Product.is_featured.desc(),
+        Product.rating.desc(),
     ).limit(6).all()
 
     results = []

@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import os
 import sys
 
@@ -15,17 +17,21 @@ def test_payments():
     print("======================================================================")
 
     client = app.test_client()
+    test_email = os.getenv('TEST_CUSTOMER_EMAIL') or os.getenv('SEED_CUSTOMER_EMAIL')
+    test_password = os.getenv('TEST_CUSTOMER_PASSWORD') or os.getenv('SEED_CUSTOMER_PASSWORD')
+    if not test_email or not test_password:
+        raise RuntimeError('Set TEST_CUSTOMER_EMAIL and TEST_CUSTOMER_PASSWORD before running payment tests.')
 
     with app.app_context():
         # Authenticate customer
         login_res = client.post('/api/auth/login', json={
-            'email': 'customer@shopora.com',
-            'password': 'Customer@123'
+            'email': test_email,
+            'password': test_password
         })
         assert login_res.status_code == 200, f"Login failed: {login_res.data}"
         token = login_res.get_json()['token']
         headers = {'Authorization': f'Bearer {token}'}
-        print("  ✓ Authenticated as customer@shopora.com")
+        print("  ✓ Authenticated test customer")
 
         # Pick an in-stock product
         product = Product.query.filter(Product.stock >= 5).first()
@@ -55,7 +61,7 @@ def test_payments():
                 'postal_code': '560001'
             },
             'payment_method': 'razorpay',
-            'coupon_code': 'KARTHIK10'
+            'coupon_code': 'SHOPORA10'
         })
         assert order_res.status_code in (200, 201), f"Create order failed: {order_res.data}"
         order_data = order_res.get_json()
@@ -69,11 +75,17 @@ def test_payments():
 
         # Test 2: Cryptographic Payment Verification & Stock Deduction
         print("\n[TEST 2] Complete Cryptographic Payment Verification via /api/payments/verify")
+        payment_id = f"pay_test_{order['id']}_123"
+        signature = hmac.new(
+            app.config['RAZORPAY_KEY_SECRET'].encode('utf-8'),
+            f"{razorpay_info['order_id']}|{payment_id}".encode('utf-8'),
+            hashlib.sha256,
+        ).hexdigest()
         verify_res = client.post('/api/payments/verify', headers=headers, json={
             'order_id': order['id'],
             'razorpay_order_id': razorpay_info['order_id'],
-            'razorpay_payment_id': f"pay_test_{order['id']}_123",
-            'razorpay_signature': f"test_sig_{razorpay_info['order_id']}"
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature
         })
         assert verify_res.status_code == 200, f"Verification failed: {verify_res.data}"
         verified_order = verify_res.get_json()['order']

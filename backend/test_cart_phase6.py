@@ -17,12 +17,17 @@ def run_tests():
     client = app.test_client()
     passed_tests = 0
     total_tests = 12
+    test_email = os.getenv('TEST_CUSTOMER_EMAIL') or os.getenv('SEED_CUSTOMER_EMAIL')
+    test_password = os.getenv('TEST_CUSTOMER_PASSWORD') or os.getenv('SEED_CUSTOMER_PASSWORD')
+    if not test_email or not test_password:
+        print("Test setup requires TEST_CUSTOMER_EMAIL and TEST_CUSTOMER_PASSWORD.")
+        return False
 
     with app.app_context():
         # Ensure customer user exists
-        user = User.query.filter_by(email="customer@shopora.com").first()
+        user = User.query.filter_by(email=test_email).first()
         if not user:
-            print("❌ Test setup failed: customer@shopora.com does not exist.")
+            print(f"Test setup failed: {test_email} does not exist.")
             return False
 
         # Clean slate for test user
@@ -33,8 +38,8 @@ def run_tests():
         # Step 1: Login & obtain JWT
         print("\n[TEST 1] Customer Authentication & JWT Session")
         login_res = client.post('/api/auth/login', json={
-            'email': 'customer@shopora.com',
-            'password': 'Customer@123'
+            'email': test_email,
+            'password': test_password
         })
         assert login_res.status_code == 200, f"Login failed: {login_res.data}"
         token = login_res.get_json()['token']
@@ -215,8 +220,8 @@ def run_tests():
         print("\n[TEST 11] Cart Persistence in PostgreSQL Across Sessions")
         # Simulate logout / new login
         new_login = client.post('/api/auth/login', json={
-            'email': 'customer@shopora.com',
-            'password': 'Customer@123'
+            'email': test_email,
+            'password': test_password
         })
         new_token = new_login.get_json()['token']
         new_headers = {'Authorization': f'Bearer {new_token}'}
